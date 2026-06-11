@@ -1,0 +1,51 @@
+name: CI-CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+
+      - name: Build Docker Image
+        run: |
+          docker build -t saurabhchaudhary/cicd-demo:latest .
+
+
+      - name: Push Docker Image
+        run: |
+          docker push saurabhchaudhary/cicd-demo:latest
+
+
+      - name: Deploy on AWS EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull saurabhchaudhary/cicd-demo:latest
+
+            docker stop cicd-demo || true
+            docker rm cicd-demo || true
+
+            docker run -d \
+              --name cicd-demo \
+              -p 80:5000 \
+              saurabhchaudhary/cicd-demo:latest
